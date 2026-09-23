@@ -2808,30 +2808,34 @@ async download(key, isMetadata = false) {
         }
       }
 
-      this.logger.log(
-        "info",
-        "🔍 Checking for items deleted locally by comparing metadata against actual keys..."
-      );
-      let newlyDeletedCount = 0;
-      for (const itemId in this.metadata.items) {
-        const metadataItem = this.metadata.items[itemId];
-
-        if (!localItemKeys.has(itemId) && !metadataItem.deleted) {
-          this.logger.log(
-            "info",
-            `⚰️ Detected locally deleted item: ${itemId}. Creating tombstone.`
-          );
-
-          changedItems.push({
-            id: itemId,
-            type: metadataItem.type || "idb",
-            deleted: Date.now(),
-            tombstoneVersion: (metadataItem.tombstoneVersion || 0) + 1,
-            reason: "detected-deletion",
-          });
-          newlyDeletedCount++;
-        }
-      }
+     this.logger.log(
+  "info",
+  "🔍 Checking for items deleted locally by comparing metadata against actual keys..."
+);
+let newlyDeletedCount = 0;
+for (const itemId in this.metadata.items) {
+  const metadataItem = this.metadata.items[itemId];
+  // BUGFIX: Skip items that came from cloud but haven't been downloaded to
+  // IndexedDB yet. This prevents false tombstones after a backup restore
+  // when metadata has 828 items but IndexedDB only has 79 (not yet downloaded).
+  if (this._syncFromCloudInProgress && !this._preSyncLocalItemIds?.has(itemId)) {
+    continue;
+  }
+  if (!localItemKeys.has(itemId) && !metadataItem.deleted) {
+    this.logger.log(
+      "info",
+      `⚰️ Detected locally deleted item: ${itemId}. Creating tombstone.`
+    );
+    changedItems.push({
+      id: itemId,
+      type: metadataItem.type || "idb",
+      deleted: Date.now(),
+      tombstoneVersion: (metadataItem.tombstoneVersion || 0) + 1,
+      reason: "detected-deletion",
+    });
+    newlyDeletedCount++;
+  }
+}
       if (newlyDeletedCount > 0) {
         this.logger.log(
           "success",
