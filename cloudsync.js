@@ -5662,13 +5662,84 @@ for (const itemId in this.metadata.items) {
       }
       this.providerRegistry.set(typeName, providerClass);
     }
+    _setupDuplicateTabGuard() {
+      try {
+        if (!("BroadcastChannel" in window)) return;
+        const channel = new BroadcastChannel("tcs-tab-detection");
+        const myTabId = `tab_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        this._tabDetectionChannel = channel;
+        this._tabDetectionId = myTabId;
 
+        // On load, ask if anyone else is there
+        channel.postMessage({ type: "who-is-there", id: myTabId });
+
+        let gotResponse = false;
+
+        channel.onmessage = (event) => {
+          const msg = event.data;
+          if (!msg || msg.id === myTabId) return;
+
+          if (msg.type === "who-is-there") {
+            // Another tab is opening — tell it we exist
+            channel.postMessage({ type: "i-am-here", id: myTabId });
+          }
+
+          if (msg.type === "i-am-here" && !gotResponse) {
+            gotResponse = true;
+            this._showDuplicateTabWarning();
+          }
+        };
+
+        // Also listen for future tabs opening while we're open
+        // (handled by onmessage above)
+      } catch (e) {
+        this.logger?.log("warning", "Tab detection failed", e.message);
+      }
+    }
+
+    _showDuplicateTabWarning() {
+      if (document.getElementById("tcs-duplicate-tab-warning")) return;
+      this.logger?.log("warning", "⚠️ Multiple TypingMind tabs detected!");
+
+      const banner = document.createElement("div");
+      banner.id = "tcs-duplicate-tab-warning";
+      banner.style.cssText = `
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        background: #dc2626;
+        color: white;
+        text-align: center;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        z-index: 999999;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+      `;
+      banner.innerHTML = `
+        <span>⚠️ <strong>Multiple TypingMind tabs detected.</strong> This can cause sync conflicts and data loss. Please close the other tab(s) to keep your data safe.</span>
+        <button style="
+          background: white; color: #dc2626; border: none;
+          padding: 4px 12px; border-radius: 4px; cursor: pointer;
+          font-weight: 600; font-size: 12px;
+        ">Dismiss</button>
+      `;
+
+      banner.querySelector("button").addEventListener("click", () => {
+        banner.remove();
+      });
+
+      document.body.appendChild(banner);
+    }
     async initialize() {
       this.logger.log(
         "start",
         "Initializing TypingmindCloud Sync V4.2"
       );
-
+      this._setupDuplicateTabGuard();
       const urlParams = new URLSearchParams(window.location.search);
       this.noSyncMode =
         urlParams.get("nosync") === "true" || urlParams.has("nosync");
