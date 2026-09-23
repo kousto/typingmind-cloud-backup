@@ -2588,6 +2588,9 @@ async download(key, isMetadata = false) {
       this.metadata = this.loadMetadata();
       this.syncInProgress = false;
       this.autoSyncInterval = null;
+      // BUGFIX: Track local item IDs before cloud sync overwrites metadata
+      this._syncFromCloudInProgress = false;
+      this._preSyncLocalItemIds = null;
     }
     loadMetadata() {
       const stored = localStorage.getItem("tcs_local-metadata");
@@ -3215,12 +3218,16 @@ for (const itemId in this.metadata.items) {
             delete cloudMetadata.items[fk];
           }
         }
+        // BUGFIX: Save local item IDs before overwriting with cloud metadata
+        this._preSyncLocalItemIds = new Set(Object.keys(this.metadata.items));
+        this._syncFromCloudInProgress = true;
         this.metadata = cloudMetadata;
         this.metadata.lastSync = cloudLastSync;
         this.setLastCloudSync(cloudLastSync);
         localStorage.setItem("tcs_metadata_etag", cloudMetadataETag);
         this.saveMetadata();
         await this.updateSyncDiagnosticsCache();
+        this._syncFromCloudInProgress = false;
         this.logger.log("success", "Sync from cloud completed");
         return metadataWasPurged;
       } catch (error) {
