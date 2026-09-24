@@ -5794,49 +5794,42 @@ for (const itemId in this.metadata.items) {
       }
     }
 
-       _showDuplicateTabWarning() {
-      if (document.getElementById("tcs-duplicate-tab-blocker")) return;
-      this.logger?.log("warning", "⚠️ Multiple TypingMind tabs detected! Blocking this tab.");
+    _showDuplicateTabWarning() {
+      if (document.getElementById("tcs-duplicate-tab-warning")) return;
+      this.logger?.log("warning", "⚠️ Multiple TypingMind tabs detected!");
 
-      const overlay = document.createElement("div");
-      overlay.id = "tcs-duplicate-tab-blocker";
-      overlay.style.cssText = `
+      const banner = document.createElement("div");
+      banner.id = "tcs-duplicate-tab-warning";
+      banner.style.cssText = `
         position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.9);
+        top: 0; left: 0; right: 0;
+        background: #dc2626;
         color: white;
+        text-align: center;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        z-index: 999999;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        z-index: 9999999;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        text-align: center;
-        padding: 20px;
+        gap: 12px;
       `;
-      overlay.innerHTML = `
-        <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
-        <h2 style="font-size: 22px; margin-bottom: 12px; color: #fca5a5;">
-          TypingMind is already open in another tab
-        </h2>
-        <p style="font-size: 15px; color: #d1d5db; max-width: 400px; line-height: 1.5;">
-          Having multiple TypingMind tabs open can cause sync conflicts and data loss.
-          <br><br>
-          Please close this tab and use the existing one.
-        </p>
-        <button id="tcs-force-close-btn" style="
-          margin-top: 24px;
-          background: #dc2626; color: white; border: none;
-          padding: 10px 24px; border-radius: 6px; cursor: pointer;
-          font-weight: 600; font-size: 14px;
-        ">I understand, let me in anyway</button>
+      banner.innerHTML = `
+        <span>⚠️ <strong>Multiple TypingMind tabs detected.</strong> This can cause sync conflicts and data loss. Please close the other tab(s) to keep your data safe.</span>
+        <button style="
+          background: white; color: #dc2626; border: none;
+          padding: 4px 12px; border-radius: 4px; cursor: pointer;
+          font-weight: 600; font-size: 12px;
+        ">Dismiss</button>
       `;
 
-      overlay.querySelector("#tcs-force-close-btn").addEventListener("click", () => {
-        overlay.remove();
+      banner.querySelector("button").addEventListener("click", () => {
+        banner.remove();
       });
 
-      document.body.appendChild(overlay);
+      document.body.appendChild(banner);
     }
     async initialize() {
       this.logger.log(
