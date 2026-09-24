@@ -2092,10 +2092,7 @@ async download(key, isMetadata = false) {
 
           this._storeToken(tokenResponse);
           
-          // BUGFIX: Laisser un temps après la fermeture de la fenêtre Google
-          this.logger.log("info", "⏳ Attente de 1.5s pour finaliser l'authentification...");
-          await new Promise(r => setTimeout(r, 1500));
-          
+                 
           this.logger.log("success", "Google Drive authentication successful.");
           resolve();
         };
@@ -2103,7 +2100,7 @@ async download(key, isMetadata = false) {
       
 
         this.tokenClient.callback = callback;
-        const prompt = options.interactive ? "consent" : "none";
+        const prompt = options.interactive ? "consent" : "";
         this.tokenClient.requestAccessToken({ prompt: prompt });
       });
     }
