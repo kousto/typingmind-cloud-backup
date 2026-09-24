@@ -2071,7 +2071,7 @@ async download(key, isMetadata = false) {
       }
 
       return new Promise((resolve, reject) => {
-        const callback = (tokenResponse) => {
+        const callback = async (tokenResponse) => {
           if (tokenResponse.error) {
             this.logger.log("error", "Google Auth Error", tokenResponse);
             if (options.interactive) {
@@ -2091,9 +2091,16 @@ async download(key, isMetadata = false) {
           }
 
           this._storeToken(tokenResponse);
+          
+          // BUGFIX: Laisser un temps après la fermeture de la fenêtre Google
+          this.logger.log("info", "⏳ Attente de 1.5s pour finaliser l'authentification...");
+          await new Promise(r => setTimeout(r, 1500));
+          
           this.logger.log("success", "Google Drive authentication successful.");
           resolve();
         };
+
+      
 
         this.tokenClient.callback = callback;
         const prompt = options.interactive ? "consent" : "none";
