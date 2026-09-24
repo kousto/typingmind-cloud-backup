@@ -1978,16 +1978,11 @@ async download(key, isMetadata = false) {
 
       await gapi.client.init({});
 
-      const storedEmail = localStorage.getItem("tcs_google_user_email");
-      const tokenClientConfig = {
+      this.tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: this.config.get("googleClientId"),
         scope: this.DRIVE_SCOPES,
         callback: () => {},
-      };
-      if (storedEmail) {
-        tokenClientConfig.hint = storedEmail;
-      }
-      this.tokenClient = google.accounts.oauth2.initTokenClient(tokenClientConfig);
+      });
 
       const storedToken = localStorage.getItem("tcs_google_access_token");
       if (storedToken) {
@@ -2015,65 +2010,8 @@ async download(key, isMetadata = false) {
         }
       }
     }
-// BUGFIX: Start proactive token refresh to avoid popup prompts
-      this._startProactiveTokenRefresh();
-    }
 
-    _startProactiveTokenRefresh() {
-      if (this._tokenRefreshTimer) {
-        clearInterval(this._tokenRefreshTimer);
-      }
-      this._tokenRefreshTimer = setInterval(async () => {
-        try {
-          const token = gapi.client.getToken();
-          if (!token?.access_token) return;
-
-          const expiresAt =
-            (token.iat || 0) + (token.expires_in || 3600) * 1000;
-          const timeUntilExpiry = expiresAt - Date.now();
-
-          if (timeUntilExpiry < 10 * 60 * 1000) {
-            this.logger.log(
-              "info",
-              "🔄 Proactively refreshing Google Drive token (expires soon)"
-            );
-            await this._silentTokenRefresh();
-          }
-        } catch (e) {
-          this.logger.log(
-            "warning",
-            "Proactive token refresh check failed",
-            e.message
-          );
-        }
-      }, 5 * 60 * 1000);
-    }
-
-    _silentTokenRefresh() {
-      return new Promise((resolve) => {
-        const callback = (tokenResponse) => {
-          if (tokenResponse.error) {
-            this.logger.log(
-              "warning",
-              "Silent token refresh failed - will retry later",
-              tokenResponse.error
-            );
-            resolve(false);
-            return;
-          }
-          this._storeToken(tokenResponse);
-          this.logger.log(
-            "success",
-            "✅ Google Drive token refreshed silently"
-          );
-          resolve(true);
-        };
-
-        this.tokenClient.callback = callback;
-        this.tokenClient.requestAccessToken({ prompt: "none" });
-      });
-    }
-   _storeToken(tokenResponse) {
+    _storeToken(tokenResponse) {
       if (!tokenResponse.access_token) return;
 
       const tokenToStore = { ...tokenResponse, iat: Date.now() };
@@ -2083,41 +2021,6 @@ async download(key, isMetadata = false) {
         JSON.stringify(tokenToStore)
       );
       this.logger.log("success", "Google Drive token stored successfully.");
-
-      // BUGFIX: Fetch and store user email for silent future logins
-      this._fetchAndStoreUserEmail(tokenResponse.access_token);
-    }
-
-    async _fetchAndStoreUserEmail(accessToken) {
-      try {
-        const response = await fetch(
-          "https://www.googleapis.com/oauth2/v3/userinfo",
-          { headers: { Authorization: "Bearer " + accessToken } }
-        );
-        if (response.ok) {
-          const userInfo = await response.json();
-          if (userInfo.email) {
-            localStorage.setItem("tcs_google_user_email", userInfo.email);
-            this.logger.log(
-              "info",
-              `Stored Google user email for silent logins: ${userInfo.email}`
-            );
-            // Reinitialize token client with login hint
-            this.tokenClient = google.accounts.oauth2.initTokenClient({
-              client_id: this.config.get("googleClientId"),
-              scope: this.DRIVE_SCOPES,
-              callback: () => {},
-              hint: userInfo.email,
-            });
-          }
-        }
-      } catch (e) {
-        this.logger.log(
-          "warning",
-          "Could not fetch user email for login hint",
-          e.message
-        );
-      }
     }
 
     async _loadScript(id, src) {
@@ -2193,7 +2096,7 @@ async download(key, isMetadata = false) {
         };
 
         this.tokenClient.callback = callback;
-        const prompt = options.interactive ? "consent" : "none";
+        const prompt = options.interactive ? "consent" : "";
         this.tokenClient.requestAccessToken({ prompt: prompt });
       });
     }
