@@ -2096,7 +2096,7 @@ async download(key, isMetadata = false) {
         };
 
         this.tokenClient.callback = callback;
-        const prompt = options.interactive ? "consent" : "";
+        const prompt = options.interactive ? "consent" : "none";
         this.tokenClient.requestAccessToken({ prompt: prompt });
       });
     }
